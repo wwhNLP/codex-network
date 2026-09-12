@@ -34,7 +34,9 @@ while [ "$#" -gt 0 ]; do
 done
 valid_name "$name" || { error '配置名无效；使用字母、数字、下划线或连字符，不使用 all/example。'; exit 2; }
 file="$CONFIG_DIR/$name.conf"
-[ ! -e "$file" ] && [ ! -L "$file" ] || { error "配置已存在：${file}，请编辑该文件或使用新的配置名。"; exit 2; }
+if [ -e "$file" ] || [ -L "$file" ]; then
+  error "配置已存在：${file}，请编辑该文件或使用新的配置名。"; exit 2
+fi
 
 if [ -z "$host" ]; then
   [ -t 0 ] || { error '非交互模式需要 --host，例如：./codex-network init dev --host my-server'; exit 2; }
