@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+# 统一入口，保持原有 doctor.sh / repair.sh 可独立使用。
+set -u
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+# shellcheck source=common.sh
+source "$SCRIPT_DIR/common.sh"
+
+usage() {
+  cat <<'EOF'
+Codex 远程网络助手（macOS → SSH → Linux）
+
+用法：./codex-network <命令> [配置名|all] [选项]
+
+  init [配置名]  创建本地配置，默认名称 default
+  start          安装并启动隧道，支持 --dry-run
+  doctor         逐层诊断网络，默认检查全部配置
+  repair         重启隧道并验证，支持 --dry-run
+  stop           停止隧道并禁用登录启动，支持 --dry-run
+  list           列出本地配置
+  help           显示帮助
+
+快速开始：
+  ./codex-network init dev --host my-server
+  ./codex-network start dev
+  ./codex-network doctor dev
+
+首次使用先用 ssh my-server 确认主机指纹并完成密钥认证。
+EOF
+}
+
+command_name="${1:-help}"
+[ "$#" -eq 0 ] || shift
+case "$command_name" in
+  init) exec bash "$SCRIPT_DIR/setup.sh" "$@" ;;
+  start|stop) exec bash "$SCRIPT_DIR/tunnel.sh" "$command_name" "$@" ;;
+  doctor) exec bash "$SCRIPT_DIR/doctor.sh" "$@" ;;
+  repair) exec bash "$SCRIPT_DIR/repair.sh" "$@" ;;
+  list)
+    [ "$#" -eq 0 ] || { usage >&2; exit 2; }
+    select_targets all || exit 2
+    printf '%-16s %-26s %-10s %s\n' '配置' 'SSH 主机' '远端端口' '隧道管理'
+    for target in "${targets[@]}"; do
+      resolve_target "$target" || exit 2
+      printf '%-16s %-26s %-10s %s\n' "$TARGET_NAME" "$MAIN_HOST" "$REMOTE_PORT" "$MANAGE_TUNNEL"
+    done
+    ;;
+  help|-h|--help) usage ;;
+  *) error "未知命令：$command_name"; usage >&2; exit 2 ;;
+esac

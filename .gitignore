@@ -1,0 +1,8 @@
+config/*.conf
+!config/example.conf
+logs/
+/dist/
+*.log
+.DS_Store
+__pycache__/
+*.pyc

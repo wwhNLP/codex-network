@@ -1,0 +1,36 @@
+name: 检查
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: 逐文件检查 Bash 语法
+        run: |
+          for script in codex-network common.sh setup.sh tunnel.sh doctor.sh repair.sh remote-check.sh; do
+            /bin/bash -n "$script"
+          done
+      - name: 运行离线回归测试
+        run: python3 -m unittest discover -s tests -v
+      - name: 安装 ShellCheck
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y shellcheck
+      - name: 检查 Shell 脚本
+        if: runner.os == 'Linux'
+        run: shellcheck -x common.sh codex-network setup.sh tunnel.sh doctor.sh repair.sh remote-check.sh

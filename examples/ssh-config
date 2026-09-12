@@ -1,0 +1,18 @@
+# 合并到自己的 ~/.ssh/config，替换示例地址和用户名。
+# 先执行 ssh remote-dev，确认主机指纹和密钥认证可用。
+Host remote-dev
+    HostName server.example.com
+    User your-user
+    IdentityFile ~/.ssh/id_ed25519
+    ServerAliveInterval 30
+    ServerAliveCountMax 3
+
+# 使用自定义 SSH agent 时，在此别名中用 IdentityAgent 指定适当的 socket 路径；
+# 仅在终端设置 SSH_AUTH_SOCK 不会传递给 launchd 自动启动任务。
+
+# 无需写 RemoteForward，工具按本地配置添加反向转发。
+# 如果已有转发，只允许与配置完全一致的一条，例如：
+#     RemoteForward 127.0.0.1:17897 127.0.0.1:7897
+# 请检查 Host * 和 Include 是否为此别名附加了其他转发。
+# 日常登录别名包含其他转发时，可复制本例建立专用隧道别名，
+# 然后在本地配置中设置 TUNNEL_HOST=专用别名。
