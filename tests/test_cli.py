@@ -60,7 +60,12 @@ elif name == "uname":
 elif name == "plutil":
     try:
         with open(args[-1], "rb") as source:
-            plistlib.load(source)
+            plist = plistlib.load(source)
+        if args[0] == "-extract":
+            value = plist[args[1]]
+            if not isinstance(value, str):
+                sys.exit(1)
+            print(value)
     except Exception:
         sys.exit(1)
 elif name == "launchctl":
@@ -405,6 +410,44 @@ class CliTests(unittest.TestCase):
         probes = [args for args in self.calls("ssh") if args[-1].startswith("bash -s")]
         self.assertEqual(len(probes), 3)
         self.assertEqual(len(self.calls("sleep")), 2)
+
+    def test_failed_repair_reports_existing_plist_log_paths(self):
+        label = "com.example.existing-tunnel"
+        self.write_config(LAUNCH_LABEL=label)
+        self.launch.mkdir()
+        path = self.launch / (label + ".plist")
+        error_log = self.root / "旧日志 & 中文.err.log"
+        output_log = self.root / "旧日志.out.log"
+        original = plistlib.dumps({
+            "Label": label,
+            "StandardErrorPath": str(error_log),
+            "StandardOutPath": str(output_log),
+        })
+        path.write_bytes(original)
+        self.remote_status(REMOTE_LISTENER="missing", PROBE_STATUS="failed")
+        output = self.run_cli("repair", "dev", code=1)
+        self.assertIn(str(error_log), output)
+        self.assertIn(str(output_log), output)
+        self.assertNotIn(str(self.logs / (label + ".log")), output)
+        self.assertEqual(path.read_bytes(), original)
+
+    def test_failed_probe_reports_shared_log_path_once(self):
+        self.write_config()
+        self.remote_status(REMOTE_LISTENER="missing", PROBE_STATUS="failed")
+        output = self.run_cli("start", "dev", code=1)
+        self.assertEqual(output.count(str(self.logs / "io.github.codex-network.dev.log")), 1)
+
+    def test_failed_repair_without_log_paths_points_to_plist(self):
+        label = "com.example.existing-tunnel"
+        self.write_config(LAUNCH_LABEL=label)
+        self.launch.mkdir()
+        path = self.launch / (label + ".plist")
+        path.write_bytes(plistlib.dumps({"Label": label}))
+        self.remote_status(REMOTE_LISTENER="missing", PROBE_STATUS="failed")
+        output = self.run_cli("repair", "dev", code=1)
+        self.assertIn(str(path), output)
+        self.assertIn("StandardErrorPath", output)
+        self.assertNotIn(str(self.logs / (label + ".log")), output)
 
 
 if __name__ == "__main__":

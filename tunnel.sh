@@ -50,7 +50,7 @@ EOF
 }
 
 verify_tunnel() {
-  local attempt output code
+  local attempt output code plist key log_path previous_log=''
   for attempt in 1 2 3; do
     printf '  [检查] 等待远端代理响应（%s/3）…\n' "$attempt"
     if output=$(remote_probe 2>/dev/null) &&
@@ -67,7 +67,18 @@ verify_tunnel() {
     fi
     [ "$attempt" = 3 ] || sleep 2
   done
-  error "隧道已启动，但远端链路未通过验证。运行 ./codex-network doctor ${TARGET_NAME}；检查 $LOG_DIR/$LAUNCH_LABEL.log"
+  error "隧道已启动，但远端链路未通过验证。运行 ./codex-network doctor ${TARGET_NAME}。"
+  # 现有外部任务可能使用不同的日志目录或分别记录标准输出与错误。
+  plist=$(launch_service_path)
+  for key in StandardErrorPath StandardOutPath; do
+    log_path=$(plutil -extract "$key" raw -o - -- "$plist" 2>/dev/null) || continue
+    [ -n "$log_path" ] && [ "$log_path" != "$previous_log" ] || continue
+    printf '  [日志] %s\n' "$log_path" >&2
+    previous_log="$log_path"
+  done
+  if [ -z "$previous_log" ]; then
+    printf '  [日志] 无法读取日志路径；请检查 %s 中的 StandardErrorPath / StandardOutPath。\n' "$plist" >&2
+  fi
   return 1
 }
 
