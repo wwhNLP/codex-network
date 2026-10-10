@@ -72,7 +72,9 @@ verify_tunnel() {
   plist=$(launch_service_path)
   for key in StandardErrorPath StandardOutPath; do
     log_path=$(plutil -extract "$key" raw -o - -- "$plist" 2>/dev/null) || continue
-    [ -n "$log_path" ] && [ "$log_path" != "$previous_log" ] || continue
+    if [ -z "$log_path" ] || [ "$log_path" = "$previous_log" ]; then
+      continue
+    fi
     printf '  [日志] %s\n' "$log_path" >&2
     previous_log="$log_path"
   done
